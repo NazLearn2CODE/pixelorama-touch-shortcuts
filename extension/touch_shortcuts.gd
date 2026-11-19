@@ -86,6 +86,10 @@ func _ready() -> void:
 	_clamp_position()
 	_refresh_highlights()
 	save_config()
+	# On-device diagnostics: proves WHICH build is running (logcat).
+	print("[TouchShortcuts] v1.0.3 running; grip=", _grip.size,
+			" pill=", (_grip.get_child(0).get_child(0) as Control).size,
+			" at=", position)
 
 
 func _exit_tree() -> void:
