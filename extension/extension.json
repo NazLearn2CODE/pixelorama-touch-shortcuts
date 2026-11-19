@@ -3,7 +3,7 @@
     "display_name": "Touch Shortcuts",
     "description": "A floating 6-slot tool panel for touch play. Tap a slot to switch tools or undo; press and hold a slot until it blinks, then tap any tool in the palette (or the undo/redo buttons) to bind that slot. Drag the panel body to move it; tap the body to collapse.",
     "author": "Naz (Na-ark Rojanasuvan)",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "license": "MIT",
     "nodes": ["touch_shortcuts.tscn"],
     "supported_api_versions": [10]

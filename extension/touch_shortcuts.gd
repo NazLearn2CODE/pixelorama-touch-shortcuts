@@ -119,17 +119,28 @@ func _build_ui() -> void:
 	_grip = Button.new()
 	_grip.name = "Grip"
 	_grip.focus_mode = Control.FOCUS_NONE
-	_grip.flat = true
 	_grip.custom_minimum_size = Vector2(SLOT_SIZE, 18)
+	# Faint strip tint so the grab zone reads as a handle.
+	var grip_sb := StyleBoxFlat.new()
+	grip_sb.bg_color = Color(1, 1, 1, 0.05)
+	grip_sb.set_corner_radius_all(8)
+	for grip_state in ["normal", "hover", "pressed"]:
+		_grip.add_theme_stylebox_override(grip_state, grip_sb)
+	_grip.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	# Pill centred by a real container — anchors on a non-container parent
+	# are not guaranteed to size/layout the child.
+	var grip_center := CenterContainer.new()
+	grip_center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	grip_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_grip.add_child(grip_center)
 	var pill := Panel.new()
 	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	pill.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	pill.custom_minimum_size = Vector2(30, 4)
+	pill.custom_minimum_size = Vector2(34, 5)
 	var pill_style := StyleBoxFlat.new()
-	pill_style.bg_color = Color(1, 1, 1, 0.45)
+	pill_style.bg_color = Color(1, 1, 1, 0.5)
 	pill_style.set_corner_radius_all(2)
 	pill.add_theme_stylebox_override("panel", pill_style)
-	_grip.add_child(pill)
+	grip_center.add_child(pill)
 	_grip.gui_input.connect(_on_grip_gui_input)
 	vbox.add_child(_grip)
 

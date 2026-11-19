@@ -26,6 +26,13 @@ v1.2.4 is tested).
   has no network access and collects nothing.
 - A slot with a cyan ring is the tool that's currently active.
 
+## Updating an installed version
+
+Pixelorama caches extension code for as long as the app runs. To replace an
+installed `.pck`, re-add it in Preferences → Extensions, then **fully close
+Pixelorama (swipe it away / force stop) and reopen** — the change only takes
+effect after a restart.
+
 ## Install
 
 1. Download `TouchShortcuts.pck` (from this repo, or the
