@@ -20,8 +20,12 @@ v1.2.4 is tested).
 - **Drag the small handle** on top of the panel — moves it anywhere on
   screen. **Tap the handle** (or the panel body) — collapse the panel to a
   small pill; tap it again to bring the slots back.
-- **Window menu → "Toggle Touch Shortcuts Panel"** — hide/show it entirely.
-- Slots, position and collapse state **persist across restarts**. Everything
+- **The ✕ on the handle's right** — dismisses the panel entirely.
+  Bring it back via **Window menu → "Toggle Touch Shortcuts Panel"**.
+  Dismissal persists across restarts too.
+- Slots, position, collapse and visibility **persist across restarts**. While
+  the panel is running it also keeps itself out of Pixelorama's
+  crash-suspicion list, so a force-closed app can't silently disable it. Everything
   is stored in Pixelorama's own app-private settings folder — the extension
   has no network access and collects nothing.
 - A slot with a cyan ring is the tool that's currently active.

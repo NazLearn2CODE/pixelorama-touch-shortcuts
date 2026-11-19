@@ -6,8 +6,14 @@ extends PanelContainer
 ## recognizable UI element — a tool button in the palette, or the Undo/Redo
 ## quick-access buttons in the top bar — becomes that slot's shortcut.
 ## Drag the small handle on top of the panel to move it; tap the handle (or
-## the panel body) to collapse. Slots, position and collapse state persist
-## in user:// (app-private).
+## the panel body) to collapse. The ✕ on the handle's right dismisses the
+## panel — bring it back via Window menu → "Toggle Touch Shortcuts Panel";
+## dismissal persists across restarts. Slots, position, collapse and
+## visibility state persist in user:// (app-private).
+##
+## While running, the panel also keeps its own name out of Pixelorama's
+## extension-crash suspicion list, so a force-closed app can never silently
+## disable it on the next boot.
 
 const CFG_PATH := "user://touch_shortcuts_panel.cfg"
 const SLOT_COUNT := 6
@@ -40,6 +46,7 @@ var _slot_actions: Array[String] = []
 var _slot_buttons: Array[Button] = []
 var _slots_box: VBoxContainer
 var _grip: Button
+var _close_btn: Button
 var _menu_item_id := -1
 var _hold_timer: Timer
 var _hold_slot := -1
@@ -70,6 +77,15 @@ func _ready() -> void:
 	_hold_timer.timeout.connect(_on_hold_timeout)
 	add_child(_hold_timer)
 
+	# Keep our name out of the crash-suspicion list so a force-closed app
+	# can't auto-disable the panel on the next boot.
+	_clear_own_suspicion()
+	var heal := Timer.new()
+	heal.wait_time = 30.0
+	heal.timeout.connect(_clear_own_suspicion)
+	add_child(heal)
+	heal.start()
+
 	_load_config()
 	Tools.tool_changed.connect(_on_tool_changed)
 	Tools.options_reset.connect(_refresh_highlights)
@@ -87,8 +103,9 @@ func _ready() -> void:
 	_refresh_highlights()
 	save_config()
 	# On-device diagnostics: proves WHICH build is running (logcat).
-	print("[TouchShortcuts] v1.0.3 running; grip=", _grip.size,
+	print("[TouchShortcuts] v1.1.1 running; grip=", _grip.size,
 			" pill=", (_grip.get_child(0).get_child(0) as Control).size,
+			" x=", _close_btn.get_global_rect(), " visible=", visible,
 			" at=", position)
 
 
@@ -109,6 +126,11 @@ func menu_item_clicked() -> void:
 	save_config()
 
 
+func _dismiss_panel() -> void:
+	visible = false
+	save_config()
+
+
 # --- UI construction -------------------------------------------------------
 
 func _build_ui() -> void:
@@ -124,6 +146,8 @@ func _build_ui() -> void:
 	_grip.name = "Grip"
 	_grip.focus_mode = Control.FOCUS_NONE
 	_grip.custom_minimum_size = Vector2(SLOT_SIZE, 18)
+	# Force LTR so anchor/offset placement is never mirrored by locale.
+	_grip.layout_direction = Control.LAYOUT_DIRECTION_LTR
 	# Faint strip tint so the grab zone reads as a handle.
 	var grip_sb := StyleBoxFlat.new()
 	grip_sb.bg_color = Color(1, 1, 1, 0.05)
@@ -132,19 +156,45 @@ func _build_ui() -> void:
 		_grip.add_theme_stylebox_override(grip_state, grip_sb)
 	_grip.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	# Pill centred by a real container — anchors on a non-container parent
-	# are not guaranteed to size/layout the child.
+	# are not guaranteed to size/layout the child. Left of the ✕ button.
 	var grip_center := CenterContainer.new()
-	grip_center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Fixed pixel offsets against the grip's constant 56x18 rect — anchors
+	# resolved against a not-yet-laid-out parent produced negative rects.
+	grip_center.set_anchor_and_offset(SIDE_LEFT, 0.0, 2.0)
+	grip_center.set_anchor_and_offset(SIDE_RIGHT, 0.0, 28.0)
+	grip_center.set_anchor_and_offset(SIDE_TOP, 0.0, 0.0)
+	grip_center.set_anchor_and_offset(SIDE_BOTTOM, 0.0, 18.0)
 	grip_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_grip.add_child(grip_center)
 	var pill := Panel.new()
 	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	pill.custom_minimum_size = Vector2(34, 5)
+	pill.custom_minimum_size = Vector2(24, 5)
 	var pill_style := StyleBoxFlat.new()
 	pill_style.bg_color = Color(1, 1, 1, 0.5)
 	pill_style.set_corner_radius_all(2)
 	pill.add_theme_stylebox_override("panel", pill_style)
 	grip_center.add_child(pill)
+
+	# ✕ dismiss button at the handle's right end. Anchored offsets (not
+	# presets) are deterministic even on a non-container parent.
+	_close_btn = Button.new()
+	_close_btn.name = "Dismiss"
+	_close_btn.focus_mode = Control.FOCUS_NONE
+	_close_btn.expand_icon = true
+	_close_btn.icon = load("res://assets/graphics/misc/close.svg")
+	_close_btn.set_anchor_and_offset(SIDE_LEFT, 0.0, 30.0)
+	_close_btn.set_anchor_and_offset(SIDE_RIGHT, 0.0, 51.0)
+	_close_btn.set_anchor_and_offset(SIDE_TOP, 0.0, 1.0)
+	_close_btn.set_anchor_and_offset(SIDE_BOTTOM, 0.0, 17.0)
+	var x_sb := StyleBoxFlat.new()
+	x_sb.bg_color = Color(1, 1, 1, 0.07)
+	x_sb.set_corner_radius_all(5)
+	for x_state in ["normal", "hover", "pressed"]:
+		_close_btn.add_theme_stylebox_override(x_state, x_sb)
+	_close_btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	_close_btn.tooltip_text = "Dismiss panel (Window menu brings it back)"
+	_close_btn.pressed.connect(_dismiss_panel)
+	_grip.add_child(_close_btn)
 	_grip.gui_input.connect(_on_grip_gui_input)
 	vbox.add_child(_grip)
 
@@ -531,6 +581,7 @@ func save_config() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("panel", "position", position)
 	cfg.set_value("panel", "collapsed", not _slots_box.visible)
+	cfg.set_value("panel", "visible", visible)
 	for i in _slot_actions.size():
 		cfg.set_value("slots", "slot%d" % i, _slot_actions[i])
 	cfg.save(CFG_PATH)
@@ -553,6 +604,41 @@ func _load_config() -> void:
 	var collapsed: bool = cfg.get_value("panel", "collapsed", false)
 	_slots_box.visible = not collapsed
 	custom_minimum_size = Vector2(44, 28) if collapsed else Vector2.ZERO
+	visible = bool(cfg.get_value("panel", "visible", true))
+
+
+## Keep our own name out of Pixelorama's crash-suspicion list. When the app
+## is force-closed it looks like a crash; at the next boot Pixelorama reads
+## user://extensions/Monitoring.ini and auto-disables anything listed there.
+## While the panel is alive we politely erase just OUR entry (third-party
+## entries are left untouched), so a rough exit can't hide the panel.
+func _clear_own_suspicion() -> void:
+	var ini_path := "user://extensions/Monitoring.ini"
+	if not FileAccess.file_exists(ini_path):
+		return
+	var f := FileAccess.open(ini_path, FileAccess.READ)
+	if f == null:
+		return
+	var parsed: Variant = str_to_var(f.get_line())
+	f.close()
+	if typeof(parsed) != TYPE_PACKED_STRING_ARRAY:
+		return
+	var kept: PackedStringArray = PackedStringArray()
+	var changed := false
+	for entry: String in parsed:
+		if String(entry).begins_with("TouchShortcuts"):
+			changed = true
+		else:
+			kept.append(entry)
+	if not changed:
+		return
+	if kept.is_empty():
+		DirAccess.remove_absolute(ini_path)
+	else:
+		var w := FileAccess.open(ini_path, FileAccess.WRITE)
+		if w != null:
+			w.store_line(var_to_str(kept))
+			w.close()
 
 
 func _is_valid_action(action: String) -> bool:
