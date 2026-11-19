@@ -1,34 +1,30 @@
-# Touch Shortcuts — an extension for Pixelorama
+# Touch Shortcuts — Pixelorama extension
 
-A floating vertical panel with 6 big touch slots, made for drawing on a
-tablet with one hand (it was built by a left-handed artist, for a left-handed
-artist). Tap a slot to switch tools or undo — no reaching across the screen
-to the tool palette mid-stroke.
-
-Built for Pixelorama **v1.2.4-stable** (other 1.x versions may work, but only
-v1.2.4 is tested).
+A floating vertical panel with 6 big touch slots, built for one-handed
+(left-handed) drawing on a tablet. Personal tool — no AI in the loop, nothing
+phones home; it reads/writes only Pixelorama's own app-private storage.
 
 ## What it does
 
-- **Tap a slot** — runs its action. Defaults, top to bottom:
+- **Tap a slot** — runs its action. Defaults (top to bottom):
   Undo · Pan · Color Picker · Pencil · Eraser · Lasso
-- **Press and hold a slot** (about half a second) — the slot blinks, then tap
-  any tool button in the tool palette (or the Undo / Redo buttons in the top
-  bar): that slot is now that shortcut. Tap the panel itself or anywhere that
-  isn't a shortcut to cancel (red flash). Works with every tool in the
-  palette, including tools added by other extensions.
+- **Press and hold a slot** (~half a second) — the slot blinks, then tap any
+  tool button in the tool palette (or the Undo / Redo buttons in the top bar):
+  that slot now holds that shortcut. Tap the panel itself or anywhere
+  unrecognizable to cancel (red flash).
 - **Drag the small handle** on top of the panel — moves it anywhere on
   screen. **Tap the handle** (or the panel body) — collapse the panel to a
   small pill; tap it again to bring the slots back.
-- **The ✕ on the handle's right** — dismisses the panel entirely.
-  Bring it back via **Window menu → "Toggle Touch Shortcuts Panel"**.
-  Dismissal persists across restarts too.
-- Slots, position, collapse and visibility **persist across restarts**. While
-  the panel is running it also keeps itself out of Pixelorama's
-  crash-suspicion list, so a force-closed app can't silently disable it. Everything
-  is stored in Pixelorama's own app-private settings folder — the extension
-  has no network access and collects nothing.
-- A slot with a cyan ring is the tool that's currently active.
+- **The ✕ on the handle's right** — dismisses the panel entirely. Bring it
+  back via **Window menu → "Toggle Touch Shortcuts Panel"**; dismissal
+  persists across restarts too.
+- Slots, panel position, collapse and visibility **persist** across restarts
+  (stored in Pixelorama's app-private `user://` storage — nothing leaves the
+  device). While running, the panel also keeps itself out of Pixelorama's
+  crash-suspicion list, so force-closing the app can't silently disable it
+  on the next boot.
+
+Slot highlight: a slot with a cyan ring is the tool currently active.
 
 ## Updating an installed version
 
@@ -39,39 +35,52 @@ effect after a restart.
 
 ## Install
 
-1. Download `TouchShortcuts.pck` (from this repo, or the
-   [v1.0.0 release](../../releases)).
-2. Open Pixelorama → **Edit → Preferences → Extensions → Add Extension** →
-   pick the `.pck` file → enable it.
-3. The panel appears on the right edge of the screen. Drag it wherever you
-   like.
+Works on stock Pixelorama v1.2.4 and on the N Pixel mod build (same
+extension API).
 
-Uninstall: Preferences → Extensions → Touch Shortcuts → remove. The extension
-adds no tools and no menus beyond its toggle item.
+1. Copy `TouchShortcuts.pck` anywhere the app can read (e.g. the tablet's
+   Download folder).
+2. Pixelorama → **Edit → Preferences → Extensions → Add Extension** →
+   pick the `.pck` → **enable** it.
+3. The panel appears on the right edge of the screen (default spot — out of a
+   left drawing hand's way). Drag it wherever you like.
 
-## Transparency: this extension was written by an AI
+Uninstall: Preferences → Extensions → Touch Shortcuts → remove. Nothing else
+is touched: the extension adds no tools, no menus except its toggle item, and
+stores one settings file.
 
-Yes, really, and on purpose. This panel was designed and written by an AI
-coding agent (GLM, via the DeepSeek Harness) working from Naz's specs and
-feedback — Naz is the left-handed tester who uses it daily on an Android
-tablet. It is published as-is, in the spirit of a personal tool that might
-save someone else the same thumb-reach. It reads/writes only its own settings
-file inside Pixelorama's storage; there are no trackers, no network calls, no
-telemetry. The source is one GDScript file — read it before you install it.
+## Rebuild (for future agents)
 
-- Pixelorama is [Orama-Interactive/Pixelorama](https://github.com/Orama-Interactive/Pixelorama) (MIT).
-- This extension is MIT too. No affiliation with the Pixelorama team.
-- Issues welcome; support is best-effort.
+Sources live in `extension/touch-shortcuts/` (outer repo). Pipeline:
 
-## How it was verified
+```bash
+./src/make_touch_extension.sh     # packs artifacts/build/TouchShortcuts.pck
+./src/smoke_touch_extension.sh    # 26-check suite on clean stock v1.2.4
+```
 
-An automated suite boots a clean stock Pixelorama v1.2.4 headless with the
-extension installed and runs 26 checks against the live app: panel structure
-and defaults, tool switching, a real undo, the press-and-hold capture and
-rebind flow (including against the top-bar undo/redo buttons), collapse, and
-persistence across a disable/re-enable cycle. On-device touch behaviour was
-verified by hand on an Android tablet.
+The smoke suite boots the REAL stock Pixelorama headless in an isolated fake
+HOME with a test-driver extension and asserts against the live app: panel
+structure, defaults, tool switching, a real undo, capture resolution
+(tools + undo/redo buttons), the full bind flow, collapse, and persistence
+across disable/re-enable. Requires the stock worktree at /tmp/stock-v124
+(created automatically via `git worktree` from the fork checkout at the
+v1.2.4 tag; needs one `godot --headless --import` pass, also automatic).
 
-## License
+## Implementation notes (what took digging)
 
-MIT — see [LICENSE](LICENSE).
+- Stock tool names used by the panel: `Pan`, `ColorPicker`, `Pencil`,
+  `Eraser`, `Lasso` (see `src/Autoload/Tools.gd` — `Tools.tools` keys).
+- `Tools.assign_tool(name, MOUSE_BUTTON_LEFT)` is the correct switch call in
+  BOTH modes: on touchscreens Pixelorama boots in single-tool mode and
+  internally redirects LEFT → the RIGHT slot.
+- Undo/redo go through `Global.current_project.commit_undo()/commit_redo()`
+  — exactly what the Edit menu and the top-bar quick buttons call.
+- Godot 4.7 has NO `Viewport.gui_find_control()` — the extension walks the
+  UI tree itself (`_find_control_at`) with Godot's picking rules. Dialogs are
+  Windows outside that tree, so tapping one just cancels capture.
+- Extension enabled-state config key is the JSON `name`, not the pck
+  filename. Stock `user://` on Linux/desktop is `~/.local/share/pixelorama/`
+  (custom user dir!), NOT `godot/app_userdata/...`.
+- Headless gotcha for future suites: the dummy display server is 64x64 and
+  never pumps buffered input — the driver flushes and falls back to direct
+  event delivery; keep test positions inside 64x64.
