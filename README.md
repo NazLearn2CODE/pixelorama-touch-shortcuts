@@ -17,9 +17,9 @@ v1.2.4 is tested).
   bar): that slot is now that shortcut. Tap the panel itself or anywhere that
   isn't a shortcut to cancel (red flash). Works with every tool in the
   palette, including tools added by other extensions.
-- **Press the panel's dark body** (not a slot) and move — drag the panel
-  anywhere on screen. **Tap the body** — collapse the panel to a small pill;
-  tap the pill to bring it back.
+- **Drag the small handle** on top of the panel — moves it anywhere on
+  screen. **Tap the handle** (or the panel body) — collapse the panel to a
+  small pill; tap it again to bring the slots back.
 - **Window menu → "Toggle Touch Shortcuts Panel"** — hide/show it entirely.
 - Slots, position and collapse state **persist across restarts**. Everything
   is stored in Pixelorama's own app-private settings folder — the extension

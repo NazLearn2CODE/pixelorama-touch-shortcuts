@@ -5,9 +5,9 @@ extends PanelContainer
 ## Press and HOLD a slot (~0.55 s): it blinks, then the next tap on any
 ## recognizable UI element — a tool button in the palette, or the Undo/Redo
 ## quick-access buttons in the top bar — becomes that slot's shortcut.
-## Press the panel's dark body (not a slot) and move to drag it; tap the
-## body to collapse/expand. Slots, position and collapse state persist in
-## user:// (app-private).
+## Drag the small handle on top of the panel to move it; tap the handle (or
+## the panel body) to collapse. Slots, position and collapse state persist
+## in user:// (app-private).
 
 const CFG_PATH := "user://touch_shortcuts_panel.cfg"
 const SLOT_COUNT := 6
@@ -39,6 +39,7 @@ const COLOR_BAD := Color(0.95, 0.3, 0.3)
 var _slot_actions: Array[String] = []
 var _slot_buttons: Array[Button] = []
 var _slots_box: VBoxContainer
+var _grip: Button
 var _menu_item_id := -1
 var _hold_timer: Timer
 var _hold_slot := -1
@@ -111,9 +112,26 @@ func _build_ui() -> void:
 	vbox.name = "Box"
 	vbox.add_theme_constant_override("separation", 6)
 	# Let presses in the gaps/border fall through to the panel body
-	# (the body is the drag handle + collapse toggle).
+	# (body tap = collapse, body drag = move).
 	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(vbox)
+
+	_grip = Button.new()
+	_grip.name = "Grip"
+	_grip.focus_mode = Control.FOCUS_NONE
+	_grip.flat = true
+	_grip.custom_minimum_size = Vector2(SLOT_SIZE, 18)
+	var pill := Panel.new()
+	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pill.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	pill.custom_minimum_size = Vector2(30, 4)
+	var pill_style := StyleBoxFlat.new()
+	pill_style.bg_color = Color(1, 1, 1, 0.45)
+	pill_style.set_corner_radius_all(2)
+	pill.add_theme_stylebox_override("panel", pill_style)
+	_grip.add_child(pill)
+	_grip.gui_input.connect(_on_grip_gui_input)
+	vbox.add_child(_grip)
 
 	_slots_box = VBoxContainer.new()
 	_slots_box.name = "Slots"
@@ -317,6 +335,23 @@ func _resolve_control(ctrl: Control) -> Dictionary:
 		n = n.get_parent()
 		depth += 1
 	return {}
+
+
+# --- Grip: drag to move, tap to collapse ------------------------------------
+
+func _on_grip_gui_input(event: InputEvent) -> void:
+	if not (event is InputEventMouseButton) or event.button_index != MOUSE_BUTTON_LEFT:
+		return
+	if event.pressed:
+		_dragging = true
+		_drag_offset = position - event.global_position
+		_drag_start = event.global_position
+	else:
+		_dragging = false
+		if _drag_start.distance_to(event.global_position) <= DRAG_THRESHOLD:
+			_toggle_collapsed()
+		else:
+			save_config()
 
 
 # --- Panel body: drag to move, tap to collapse -------------------------------
